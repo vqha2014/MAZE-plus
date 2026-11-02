@@ -176,7 +176,7 @@
   </div>
 
   <div id="footer">
-    <span class="version">Version 1.1</span>
+    <span class="version">Version 1.2</span>
     <span class="author">Author: Ha Q. Vu - A5 K36 THCS Giang Vo - Ha Noi - Viet Nam<span class="note">This is a research and experimental project, not a commercial product.</span></span>
   </div>
 </div>
@@ -231,6 +231,7 @@ let grid = [], dotsLeft = 0;
 let score = 0, best = 0, level = 1, lives = 3, dotsEaten = 0;
 let player, enemies = [], particles = [], popups = [];
 let phaseIdx = 0, phaseTimer = 0, frightTimer = 0, eatChain = 0, clock = 0, shake = 0;
+let shock = null;
 let W = 0, H = 0, dpr = 1, ts = 20, ox = 0, oy = 0, wallCv = null;
 
 try { best = parseInt(localStorage.getItem('mazePlusBest') || '0', 10) || 0; } catch (e) {}
@@ -656,13 +657,14 @@ function resumeGame() {
 function burst(x, y, colors, n, power) {
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, s = Math.random() * power + 1;
-    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, size: Math.random() * ts * 0.18 + 2, life: 1, decay: 0.014 + Math.random() * 0.01, color: colors[i % colors.length] });
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, size: Math.random() * ts * 0.22 + 3, life: 1, decay: 0.011 + Math.random() * 0.006, color: colors[i % colors.length] });
   }
 }
 function die() {
-  state = S.DYING; stateTimer = 1.6; shake = 12;
+  state = S.DYING; stateTimer = 1.6; shake = 28;
   const p = posOf(player), px = tileToPx(p.x, p.y), c = skinCol();
-  burst(px[0], px[1], [c.main, c.light, '#ffffff'], 60, 7);
+  shock = { x: px[0], y: px[1], r: ts * 0.4, life: 1, c1: c.main, c2: c.light };
+  burst(px[0], px[1], [c.main, c.light], 90, 12);
   Sound.sfx('die');
 }
 function afterDeath() {
@@ -818,6 +820,7 @@ function update(dt) {
   if (state === S.PAUSED) return;
   clock += dt;
   for (const p of particles) { p.x += p.vx; p.y += p.vy; p.vx *= 0.97; p.vy *= 0.97; p.life -= p.decay; }
+  if (shock) { shock.r += ts * 0.45; shock.life -= 0.035; if (shock.life <= 0) shock = null; }
   particles = particles.filter(p => p.life > 0);
   for (const p of popups) { p.y -= dt * 0.8; p.life -= dt * 0.9; }
   popups = popups.filter(p => p.life > 0);
@@ -946,6 +949,15 @@ function render() {
     else drawOrb(px, py, ts * 0.4, c);
   }
 
+  if (shock) {
+    ctx.globalAlpha = shock.life;
+    ctx.shadowColor = shock.c1; ctx.shadowBlur = 25;
+    ctx.strokeStyle = shock.c1; ctx.lineWidth = 6 * shock.life + 1;
+    ctx.beginPath(); ctx.arc(shock.x, shock.y, shock.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowColor = shock.c2; ctx.strokeStyle = shock.c2; ctx.lineWidth = 3 * shock.life + 1;
+    ctx.beginPath(); ctx.arc(shock.x, shock.y, shock.r * 0.7, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
   for (const p of particles) {
     ctx.globalAlpha = Math.max(0, p.life);
     ctx.fillStyle = p.color;
