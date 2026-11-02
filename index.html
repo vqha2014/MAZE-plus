@@ -89,6 +89,8 @@
   .swatch.ask { border-color: #ffd54a; box-shadow: 0 0 12px rgba(255, 213, 74, 0.35); }
   .swatch:disabled { opacity: 0.45; cursor: not-allowed; }
   .swatch .dot { width: 34px; height: 34px; border-radius: 50%; }
+  .swatch canvas.dot { width: 40px; height: 40px; border-radius: 0; }
+  .shop-sub { grid-column: 1 / -1; color: var(--purple); font-weight: 700; letter-spacing: 0.2em; font-size: 0.75rem; text-align: center; margin-top: 0.4rem; }
   .swatch .state { display: flex; align-items: center; gap: 0.25rem; font-size: 0.7rem; letter-spacing: 0.08em; color: var(--muted); }
   .swatch.on .state { color: var(--green); }
   .swatch.ask .state { color: #ffd54a; }
@@ -135,7 +137,7 @@
         <b>Swipe</b> or use the <b>arrow keys</b> to roll your orb.<br>
         Collect every dot to clear the level.<br>
         Grab a big <b>power core</b> and the Shards turn <i>blue</i> — catch them!<br>
-        Every 10 dots and every Shard caught = +1 star.
+        Every 10 dots = +1 star · each Shard caught = +2 stars<br>Each level cleared = +10 stars.
       </div>
       <button class="btn" id="startBtn">Start</button>
       <div class="best" id="startBest">Best: 0</div>
@@ -168,13 +170,13 @@
       <div class="panel-title">ORB COLORS</div>
       <div class="shop-balance"><svg class="star-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0L13.2 10.8L24 12L13.2 13.2L12 24L10.8 13.2L0 12L10.8 10.8Z" fill="#cfe8ff"/><circle cx="12" cy="12" r="3.2" fill="#fff"/></svg> <span id="shopStars">0</span> stars</div>
       <div class="shop-grid" id="shopGrid"></div>
-      <div class="shop-note">Stars and colors are shared with LEVEL+ · each color costs 100 stars</div>
+      <div class="shop-note">Colors cost 100 stars · planets cost 150 stars · stars are shared with LEVEL+</div>
       <button class="btn" id="shopCloseBtn">Close</button>
     </div>
   </div>
 
   <div id="footer">
-    <span class="version">Version 1.0</span>
+    <span class="version">Version 1.1</span>
     <span class="author">Author: Ha Q. Vu - A5 K36 THCS Giang Vo - Ha Noi - Viet Nam<span class="note">This is a research and experimental project, not a commercial product.</span></span>
   </div>
 </div>
@@ -209,6 +211,7 @@ const MAP_SRC = [
   '###################'
 ];
 const COLS = 19, ROWS = 21;
+const PLAYER_SPEED = 7.2;
 const DIRS = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 const NONE = { x: 0, y: 0 };
 const wrapX = x => (x + COLS) % COLS;
@@ -267,6 +270,97 @@ try {
   }
 } catch (e) {}
 const orbCol = () => ORB_COLORS.find(c => c.id === currentOrb) || ORB_COLORS[0];
+
+// ===== Planet skins (MAZE+ only, 150 stars each) =====
+const PLANET_PRICE = 150;
+const PLANETS = [
+  { id: 'earth', name: 'Earth', main: '#3f8cff', light: '#9fd0ff', dark: '#1a3f99', base: '#2a6fe0', glow: '#6fb6ff' },
+  { id: 'mars', name: 'Mars', main: '#e0623a', light: '#ffb08f', dark: '#7a2a12', base: '#d0552e', glow: '#ff7a4a' },
+  { id: 'venus', name: 'Venus', main: '#e8c27a', light: '#fff0c8', dark: '#9a7330', base: '#e0b468', glow: '#ffd88a' },
+  { id: 'jupiter', name: 'Jupiter', main: '#d8a979', light: '#f6e2c8', dark: '#8a5a32', base: '#d9b48c', glow: '#ffcf9a' },
+  { id: 'saturn', name: 'Saturn', main: '#e8cf8f', light: '#fff2cc', dark: '#9a8040', base: '#e3c98a', glow: '#ffe7a3' },
+  { id: 'neptune', name: 'Neptune', main: '#3b6bff', light: '#9fb6ff', dark: '#162d99', base: '#2f5bef', glow: '#5f86ff' }
+];
+let planetsOwned = [], currentPlanet = '';
+try {
+  const pl = JSON.parse(localStorage.getItem('mazePlusPlanets') || 'null');
+  if (pl && Array.isArray(pl.owned)) {
+    planetsOwned = pl.owned.filter(id => PLANETS.some(p => p.id === id));
+    if (planetsOwned.includes(pl.current)) currentPlanet = pl.current;
+  }
+} catch (e) {}
+function savePlanets() {
+  try {
+    localStorage.setItem('mazePlusPlanets', JSON.stringify({ owned: planetsOwned, current: currentPlanet }));
+    localStorage.setItem('levelPlusStars', String(stars));
+  } catch (e) {}
+}
+const skinCol = () => PLANETS.find(p => p.id === currentPlanet) || orbCol();
+
+function drawPlanet(c, cx, cy, r, id, t) {
+  const P = PLANETS.find(p => p.id === id);
+  if (!P) return;
+  const ell = (x, y, rx, ry, col, rot) => { c.fillStyle = col; c.beginPath(); c.ellipse(x, y, rx, ry, rot || 0, 0, Math.PI * 2); c.fill(); };
+  const bandsFill = bands => bands.forEach((col, i) => { c.fillStyle = col; c.fillRect(cx - r, cy - r + i * (2 * r / bands.length), 2 * r, 2 * r / bands.length + 1); });
+  if (id === 'saturn') {
+    c.strokeStyle = 'rgba(232, 214, 160, 0.8)'; c.lineWidth = r * 0.2;
+    c.beginPath(); c.ellipse(cx, cy, r * 1.75, r * 0.5, -0.35, Math.PI, Math.PI * 2); c.stroke();
+  }
+  c.save();
+  c.shadowColor = P.glow; c.shadowBlur = r * 1.1;
+  c.fillStyle = P.base;
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fill();
+  c.shadowBlur = 0;
+  c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.clip();
+  const span = r * 2.6, drift = (t * 0.25 * r) % span;
+  if (id === 'earth') {
+    for (const k of [0, -span]) {
+      const dx = drift + k;
+      ell(cx - r * 0.35 + dx, cy - r * 0.2, r * 0.38, r * 0.24, '#3fbf5a', 0.3);
+      ell(cx + r * 0.3 + dx, cy + r * 0.3, r * 0.3, r * 0.2, '#3fbf5a', -0.2);
+      ell(cx + r * 0.55 + dx, cy - r * 0.45, r * 0.2, r * 0.12, '#4fd06a');
+      ell(cx - r * 0.9 + dx, cy + r * 0.5, r * 0.25, r * 0.15, '#3fbf5a');
+      ell(cx + r * 1.2 + dx, cy - r * 0.05, r * 0.28, r * 0.2, '#3fbf5a');
+    }
+    const cd = (drift * 1.6) % span;
+    for (const k of [0, -span]) {
+      const dx = cd + k;
+      ell(cx - r * 0.2 + dx, cy - r * 0.55, r * 0.5, r * 0.07, 'rgba(255, 255, 255, 0.7)', 0.1);
+      ell(cx + r * 0.5 + dx, cy + r * 0.1, r * 0.4, r * 0.06, 'rgba(255, 255, 255, 0.6)', -0.1);
+      ell(cx - r * 0.6 + dx, cy + r * 0.75, r * 0.4, r * 0.06, 'rgba(255, 255, 255, 0.6)');
+    }
+  } else if (id === 'mars') {
+    for (const k of [0, -span]) {
+      const dx = drift + k;
+      ell(cx - r * 0.3 + dx, cy + r * 0.1, r * 0.35, r * 0.18, 'rgba(120, 35, 15, 0.6)', 0.4);
+      ell(cx + r * 0.45 + dx, cy - r * 0.25, r * 0.22, r * 0.14, 'rgba(120, 35, 15, 0.55)');
+      ell(cx + r * 1.0 + dx, cy + r * 0.45, r * 0.3, r * 0.12, 'rgba(120, 35, 15, 0.5)');
+    }
+    ell(cx, cy - r * 0.95, r * 0.5, r * 0.2, 'rgba(255, 255, 255, 0.9)');
+  } else if (id === 'venus') {
+    for (let i = -3; i <= 3; i++) {
+      ell(cx + Math.sin(t * 0.5 + i) * r * 0.2, cy + i * r * 0.28, r * 1.1, r * 0.08, i % 2 ? 'rgba(255, 240, 200, 0.45)' : 'rgba(180, 130, 60, 0.3)', 0.15);
+    }
+  } else if (id === 'jupiter') {
+    bandsFill(['#f0dcc0', '#b98a5e', '#e6c9a2', '#a8744a', '#f2e0c6', '#c08f62', '#e9d1ad', '#9e6a42', '#f0dcc0']);
+    ell(cx + r * 0.3, cy + r * 0.32, r * 0.24, r * 0.13, '#c4513a');
+  } else if (id === 'saturn') {
+    bandsFill(['#f3e2b0', '#d9bf80', '#efd9a0', '#cdb070', '#f3e2b0', '#d6bb7c', '#ecd49a']);
+  } else if (id === 'neptune') {
+    ell(cx, cy - r * 0.3, r * 1.2, r * 0.12, 'rgba(160, 190, 255, 0.45)');
+    ell(cx, cy + r * 0.35, r * 1.2, r * 0.1, 'rgba(20, 40, 160, 0.5)');
+    ell(cx + r * 0.25, cy + r * 0.05, r * 0.2, r * 0.11, 'rgba(10, 20, 90, 0.7)');
+  }
+  const sh = c.createRadialGradient(cx - r * 0.4, cy - r * 0.4, r * 0.1, cx, cy, r * 1.05);
+  sh.addColorStop(0, 'rgba(255, 255, 255, 0.35)'); sh.addColorStop(0.45, 'rgba(255, 255, 255, 0)'); sh.addColorStop(1, 'rgba(0, 0, 25, 0.55)');
+  c.fillStyle = sh;
+  c.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+  c.restore();
+  if (id === 'saturn') {
+    c.strokeStyle = 'rgba(240, 222, 170, 0.95)'; c.lineWidth = r * 0.2;
+    c.beginPath(); c.ellipse(cx, cy, r * 1.75, r * 0.5, -0.35, 0, Math.PI); c.stroke();
+  }
+}
 function saveShop() {
   try {
     localStorage.setItem('levelPlusStars', String(stars));
@@ -315,8 +409,12 @@ function renderShop() {
   updateStarsUI();
   const g = $('shopGrid');
   g.textContent = '';
+  const head1 = document.createElement('div');
+  head1.className = 'shop-sub';
+  head1.textContent = 'COLORS';
+  g.appendChild(head1);
   ORB_COLORS.forEach(c => {
-    const owned = ownedOrbs.includes(c.id), on = c.id === currentOrb, asking = pendingBuy === c.id;
+    const owned = ownedOrbs.includes(c.id), on = c.id === currentOrb && !currentPlanet, asking = pendingBuy === c.id;
     const b = document.createElement('button');
     b.className = 'swatch' + (on ? ' on' : '') + (asking ? ' ask' : '');
     const dot = document.createElement('span');
@@ -341,7 +439,45 @@ function renderShop() {
       }
       pendingBuy = null;
       currentOrb = c.id;
+      currentPlanet = '';
       saveShop();
+      savePlanets();
+      renderShop();
+      updateHUD();
+    });
+    g.appendChild(b);
+  });
+  const head2 = document.createElement('div');
+  head2.className = 'shop-sub';
+  head2.textContent = 'PLANETS';
+  g.appendChild(head2);
+  PLANETS.forEach(p => {
+    const owned = planetsOwned.includes(p.id), on = p.id === currentPlanet, asking = pendingBuy === p.id;
+    const b = document.createElement('button');
+    b.className = 'swatch' + (on ? ' on' : '') + (asking ? ' ask' : '');
+    const pc = document.createElement('canvas');
+    pc.className = 'dot';
+    pc.width = 80; pc.height = 80;
+    drawPlanet(pc.getContext('2d'), 40, 40, p.id === 'saturn' ? 19 : 25, p.id, 0);
+    const nm = document.createElement('span');
+    nm.textContent = p.name;
+    const st = document.createElement('span');
+    st.className = 'state';
+    if (on) st.textContent = 'EQUIPPED';
+    else if (owned) st.textContent = 'USE';
+    else if (asking) st.textContent = 'TAP AGAIN TO BUY';
+    else { st.innerHTML = STAR_SVG; st.append(' ' + PLANET_PRICE); if (stars < PLANET_PRICE) b.disabled = true; }
+    b.append(pc, nm, st);
+    b.addEventListener('click', () => {
+      if (!owned) {
+        if (stars < PLANET_PRICE) return;
+        if (pendingBuy !== p.id) { pendingBuy = p.id; renderShop(); return; }
+        stars -= PLANET_PRICE;
+        planetsOwned.push(p.id);
+      }
+      pendingBuy = null;
+      currentPlanet = p.id;
+      savePlanets();
       renderShop();
       updateHUD();
     });
@@ -479,7 +615,7 @@ function updateHUD() {
   $('hLevel').textContent = level;
   const box = $('hLives');
   box.textContent = '';
-  const c = orbCol();
+  const c = skinCol();
   for (let i = 0; i < lives; i++) {
     const s = document.createElement('span');
     s.className = 'life';
@@ -525,7 +661,7 @@ function burst(x, y, colors, n, power) {
 }
 function die() {
   state = S.DYING; stateTimer = 1.6; shake = 12;
-  const p = posOf(player), px = tileToPx(p.x, p.y), c = orbCol();
+  const p = posOf(player), px = tileToPx(p.x, p.y), c = skinCol();
   burst(px[0], px[1], [c.main, c.light, '#ffffff'], 60, 7);
   Sound.sfx('die');
 }
@@ -539,7 +675,7 @@ function afterDeath() {
 function levelClear() {
   state = S.CLEAR; stateTimer = 2.2;
   Sound.sfx('clear');
-  for (let i = 0; i < 5; i++) setTimeout(() => flyStarFromTile(9, 11), i * 160);
+  for (let i = 0; i < 10; i++) setTimeout(() => flyStarFromTile(9, 11), i * 110);
 }
 function nextLevel() {
   level++;
@@ -586,7 +722,7 @@ function updatePlayer(dt) {
     if (p.next !== NONE && canEnter(p.tx + p.next.x, p.ty + p.next.y, false)) { p.dir = p.next; p.prog = 0; }
     else return;
   }
-  p.prog += 7.2 * dt;
+  p.prog += PLAYER_SPEED * dt;
   while (p.prog >= 1) {
     p.prog -= 1;
     p.tx = wrapX(p.tx + p.dir.x); p.ty += p.dir.y;
@@ -600,7 +736,8 @@ function enemySpeed(e) {
   if (e.mode === 'eaten') return 14;
   if (e.mode === 'fright') return 4.2;
   if (e.mode === 'leave') return 4.5;
-  let s = Math.min(8.4, 6.4 + (level - 1) * 0.3);
+  // Shards are never faster than the orb
+  let s = Math.min(PLAYER_SPEED, 6.2 + (level - 1) * 0.25);
   if (e.ty === 9 && (e.tx < 4 || e.tx > COLS - 5)) s *= 0.6;
   return s;
 }
@@ -668,6 +805,7 @@ function checkCollisions() {
       e.mode = 'eaten';
       Sound.sfx('eat');
       flyStarFromTile(ep.x, ep.y);
+      setTimeout(() => flyStarFromTile(ep.x, ep.y), 150);
     } else {
       die();
       return;
@@ -795,7 +933,7 @@ function render() {
   if (state !== S.DYING && state !== S.OVER) for (const e of enemies) drawEnemy(e);
 
   if (state !== S.DYING && state !== S.OVER) {
-    const c = orbCol();
+    const c = skinCol();
     player.trail.forEach((t, i) => {
       const [tx, ty] = tileToPx(t.x, t.y);
       ctx.globalAlpha = (i / player.trail.length) * 0.3;
@@ -804,7 +942,8 @@ function render() {
     });
     ctx.globalAlpha = 1;
     const pp = posOf(player), [px, py] = tileToPx(pp.x, pp.y);
-    drawOrb(px, py, ts * 0.4, c);
+    if (currentPlanet) drawPlanet(ctx, px, py, ts * 0.4, currentPlanet, clock);
+    else drawOrb(px, py, ts * 0.4, c);
   }
 
   for (const p of particles) {
