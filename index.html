@@ -69,8 +69,12 @@
   .big { font-size: clamp(3rem, 12vw, 4.5rem); font-weight: 900; color: var(--cyan); text-shadow: 0 0 30px rgba(0, 240, 255, 0.4); line-height: 1; margin-top: 0.4rem; }
   .lbl2 { color: #4a5568; letter-spacing: 0.25em; font-size: 0.8rem; margin-top: 1.4rem; }
   .stars-line { color: #cfe8ff; font-weight: 700; margin-top: 1rem; font-size: clamp(1rem, 4vw, 1.25rem); }
-  .home { display: inline-block; margin-top: 1.3rem; color: #8b93a7; font-size: 0.85rem; letter-spacing: 0.12em; text-decoration: none; }
-  .home:hover { color: var(--cyan); }
+  .home {
+    display: inline-block; margin-top: 1.2rem; padding: 0.45rem 1.1rem; border-radius: 999px;
+    border: 1px solid rgba(139, 147, 167, 0.45); color: #8b93a7; text-decoration: none;
+    font-size: clamp(0.75rem, 2.8vw, 0.9rem); letter-spacing: 0.12em; -webkit-tap-highlight-color: transparent;
+  }
+  .home:hover, .home:active { color: var(--cyan); border-color: var(--cyan); }
 
   .modal { z-index: 20; }
   .panel {
@@ -150,7 +154,8 @@
       <div class="title small">Paused</div>
       <button class="btn" id="resumeBtn">Resume</button>
       <div class="stars-line"><svg class="star-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0L13.2 10.8L24 12L13.2 13.2L12 24L10.8 13.2L0 12L10.8 10.8Z" fill="#cfe8ff"/><circle cx="12" cy="12" r="3.2" fill="#fff"/></svg> <span id="pauseStars">0</span> stars</div>
-      <button class="btn btn-alt" id="shopBtn">Orb colors</button>
+      <button class="btn btn-alt" id="shopBtn">Orb colors</button><br>
+      <a class="home" href="https://vqha2014.github.io/">◂ All games</a>
     </div>
   </div>
 
