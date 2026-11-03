@@ -137,7 +137,7 @@
         <b>Swipe</b> or use the <b>arrow keys</b> to roll your orb.<br>
         Collect every dot to clear the level.<br>
         Grab a big <b>power core</b> and the Shards turn <i>blue</i> — catch them!<br>
-        Every 10 dots = +1 star · each Shard caught = +2 stars<br>Each level cleared = +10 stars.
+        Every 5 dots = +1 star · each Shard caught = +3 stars<br>Each level cleared = +10 stars.
       </div>
       <button class="btn" id="startBtn">Start</button>
       <div class="best" id="startBest">Best: 0</div>
@@ -176,7 +176,7 @@
   </div>
 
   <div id="footer">
-    <span class="version">Version 1.2</span>
+    <span class="version">Version 1.3</span>
     <span class="author">Author: Ha Q. Vu - A5 K36 THCS Giang Vo - Ha Noi - Viet Nam<span class="note">This is a research and experimental project, not a commercial product.</span></span>
   </div>
 </div>
@@ -548,7 +548,8 @@ function resetMaze() {
 }
 function resetActors() {
   player = { tx: PSTART.x, ty: PSTART.y, dir: NONE, next: NONE, prog: 0, trail: [] };
-  enemies = ENEMY_DEFS.map((d, i) => ({
+  // Level 1 has 1 Shard, level 2 has 2, level 3 has 3, level 4+ has all 4
+  enemies = ENEMY_DEFS.slice(0, Math.min(level, ENEMY_DEFS.length)).map((d, i) => ({
     kind: d.kind, color: d.color, corner: d.corner,
     tx: d.start[0], ty: d.start[1], dir: NONE, prog: 0, spin: i * 1.7, reverse: false,
     mode: d.wait === 0 ? 'scatter' : 'pen',
@@ -696,7 +697,8 @@ function gameOver() {
 }
 
 function startFright() {
-  frightTimer = Math.max(2, 7 - (level - 1) * 0.6);
+  // 10 seconds on level 1, one second less each level, 3 seconds from level 8 on
+  frightTimer = Math.max(3, 10 - (level - 1));
   eatChain = 0;
   for (const e of enemies) if (e.mode === 'scatter' || e.mode === 'chase') { e.mode = 'fright'; e.reverse = true; }
   Sound.sfx('power');
@@ -706,7 +708,7 @@ function eatAt(x, y) {
   if (c === '.') {
     grid[y][x] = ' '; dotsLeft--; dotsEaten++;
     addScore(10); Sound.sfx('dot');
-    if (dotsEaten % 10 === 0) flyStarFromTile(x, y);
+    if (dotsEaten % 5 === 0) flyStarFromTile(x, y);
   } else if (c === 'o') {
     grid[y][x] = ' '; dotsLeft--;
     addScore(50); startFright();
@@ -736,10 +738,11 @@ function updatePlayer(dt) {
 }
 function enemySpeed(e) {
   if (e.mode === 'eaten') return 14;
-  if (e.mode === 'fright') return 4.2;
+  if (e.mode === 'fright') return 3.6;
   if (e.mode === 'leave') return 4.5;
   // Shards are never faster than the orb
-  let s = Math.min(PLAYER_SPEED, 6.2 + (level - 1) * 0.25);
+  // Shards are slower than the orb: 5.2 on level 1, up to 6.4 at most
+  let s = Math.min(6.4, 5.2 + (level - 1) * 0.2);
   if (e.ty === 9 && (e.tx < 4 || e.tx > COLS - 5)) s *= 0.6;
   return s;
 }
@@ -808,6 +811,7 @@ function checkCollisions() {
       Sound.sfx('eat');
       flyStarFromTile(ep.x, ep.y);
       setTimeout(() => flyStarFromTile(ep.x, ep.y), 150);
+      setTimeout(() => flyStarFromTile(ep.x, ep.y), 300);
     } else {
       die();
       return;
