@@ -101,6 +101,21 @@
   .shop-note { text-align: center; color: var(--muted); font-size: 0.72rem; margin-top: 0.9rem; }
   .panel .btn { display: block; margin: 1.2rem auto 0; padding: 0.7rem 2rem; font-size: 1rem; }
 
+  #dpad {
+    position: absolute; z-index: 6; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+    gap: 5%; touch-action: none; -webkit-user-select: none; user-select: none;
+  }
+  #dpad .dp {
+    display: flex; align-items: center; justify-content: center; border-radius: 22%;
+    border: 2px solid rgba(0, 240, 255, 0.45); background: rgba(5, 8, 22, 0.55); color: var(--cyan);
+    box-shadow: 0 0 14px rgba(0, 240, 255, 0.18), inset 0 0 12px rgba(0, 240, 255, 0.08);
+    transition: background 0.08s ease, transform 0.08s ease;
+  }
+  #dpad .dp svg { width: 46%; height: 46%; fill: currentColor; filter: drop-shadow(0 0 4px rgba(0, 240, 255, 0.7)); }
+  #dpad .dp.active { background: rgba(0, 240, 255, 0.28); transform: scale(0.94); color: #fff; }
+  #dpad .up { grid-area: 1 / 2; } #dpad .left { grid-area: 2 / 1; } #dpad .right { grid-area: 2 / 3; } #dpad .down { grid-area: 3 / 2; }
+  #dpad .left svg { transform: rotate(-90deg); } #dpad .right svg { transform: rotate(90deg); } #dpad .down svg { transform: rotate(180deg); }
+  #dpad .center { grid-area: 2 / 2; border-radius: 50%; margin: 18%; border: 1px solid rgba(176, 38, 255, 0.4); background: rgba(176, 38, 255, 0.08); }
   #footer {
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 11; pointer-events: none;
     display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem;
@@ -138,7 +153,7 @@
       <div class="title">MAZE+</div>
       <div class="subtitle">NEON ORB</div>
       <div class="info">
-        <b>Swipe</b> or use the <b>arrow keys</b> to roll your orb.<br>
+        <b>Swipe</b>, tap the <b>arrow pad</b> or use the <b>arrow keys</b> to roll your orb.<br>
         Collect every dot to clear the level.<br>
         Grab a big <b>power core</b> and the Shards turn <i>blue</i> — catch them!<br>
         Every 5 dots = +1 star · each Shard caught = +3 stars<br>Each level cleared = +10 stars.
@@ -180,8 +195,16 @@
     </div>
   </div>
 
+  <div id="dpad" class="hidden" aria-label="Direction pad">
+    <span class="dp up" data-dir="up" role="button" aria-label="Up"><svg viewBox="0 0 24 24"><path d="M12 4L21 19H3Z"/></svg></span>
+    <span class="dp left" data-dir="left" role="button" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M12 4L21 19H3Z"/></svg></span>
+    <span class="center"></span>
+    <span class="dp right" data-dir="right" role="button" aria-label="Right"><svg viewBox="0 0 24 24"><path d="M12 4L21 19H3Z"/></svg></span>
+    <span class="dp down" data-dir="down" role="button" aria-label="Down"><svg viewBox="0 0 24 24"><path d="M12 4L21 19H3Z"/></svg></span>
+  </div>
+
   <div id="footer">
-    <span class="version">Version 1.3</span>
+    <span class="version">Version 1.4</span>
     <span class="author">Author: Ha Q. Vu - A5 K36 THCS Giang Vo - Ha Noi - Viet Nam<span class="note">This is a research and experimental project, not a commercial product.</span></span>
   </div>
 </div>
@@ -190,6 +213,8 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const game = $('game'), cv = $('cv'), ctx = cv.getContext('2d');
+// Touch screens (phones, tablets) get the on-screen direction pad
+const TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
 
 // ===== Maze (original layout). # wall, . dot, o power core, - Shard door, P player, E Shard home =====
 const MAP_SRC = [
@@ -569,7 +594,26 @@ function resize() {
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const top = 70, bottom = $('footer').offsetHeight + 10;
-  const availW = W - 12, availH = Math.max(100, H - top - bottom);
+  const availW = W - 12;
+  let availH = Math.max(100, H - top - bottom);
+  if (TOUCH) {
+    const pad = $('dpad');
+    const ps = Math.round(Math.max(130, Math.min(210, Math.min(W, H) * 0.36)));
+    pad.style.width = ps + 'px'; pad.style.height = ps + 'px';
+    pad.style.bottom = bottom + 'px';
+    const tsFull = Math.floor(Math.min(availW / COLS, availH / ROWS));
+    const side = (W - tsFull * COLS) / 2;
+    if (side >= ps + 24) {
+      // Enough room beside the maze (tablets, phones sideways): put the pad on the right
+      pad.style.left = 'auto'; pad.style.transform = 'none';
+      pad.style.right = Math.round((side - ps) / 2) + 'px';
+    } else {
+      // Phones upright: make room under the maze
+      availH = Math.max(100, availH - ps - 12);
+      pad.style.right = 'auto'; pad.style.left = '50%'; pad.style.transform = 'translateX(-50%)';
+    }
+    pad.classList.remove('hidden');
+  }
   ts = Math.max(8, Math.floor(Math.min(availW / COLS, availH / ROWS)));
   ox = Math.floor((W - ts * COLS) / 2);
   oy = top + Math.floor((availH - ts * ROWS) / 2);
@@ -1008,7 +1052,30 @@ function loop(now) {
 
 // ===== Input =====
 function setDir(d) { if (player && (state === S.PLAYING || state === S.READY)) player.next = d; }
-const isUI = e => e.target && e.target.closest && e.target.closest('button, a, .panel, .screen-content');
+const isUI = e => e.target && e.target.closest && e.target.closest('button, a, .panel, .screen-content, #dpad');
+
+// On-screen direction pad: press, or slide your thumb between arrows
+const padEl = $('dpad');
+let padActive = false;
+function padDir(e) {
+  const r = padEl.getBoundingClientRect();
+  const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  if (Math.hypot(dx, dy) < r.width * 0.12) return null;
+  return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+}
+function padSet(name) {
+  padEl.querySelectorAll('[data-dir]').forEach(b => b.classList.toggle('active', b.dataset.dir === name));
+  if (name) setDir(DIRS[name]);
+}
+padEl.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  padActive = true;
+  try { padEl.setPointerCapture(e.pointerId); } catch (err) {}
+  Sound.unlock();
+  padSet(padDir(e));
+});
+padEl.addEventListener('pointermove', e => { if (padActive) padSet(padDir(e)); });
+['pointerup', 'pointercancel'].forEach(ev => padEl.addEventListener(ev, () => { padActive = false; padSet(null); }));
 let touchStart = null;
 game.addEventListener('touchstart', e => {
   if (isUI(e)) return;
